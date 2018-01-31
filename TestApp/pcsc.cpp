@@ -36,6 +36,55 @@ void LogOperation(char* operation)
 	printf("Current operation is %s \n", operation);
 }
 
+/**
+* Analyze APDU response to understand if request was successfull
+* Fetch data from the response
+*/
+PCSCResponse FormatResponseFromCard(LONG sCardResponse, BYTE data[], int dataLength)
+{
+	PCSCResponse response;
+	char* error;
+	int isResponseSuccess = PCSC_RESPONSE_SUCCESS;
+	response.sCardResponseCode = PCSC_RESPONSE_CODE_SUCCESS;
+
+	// Check if request was passed to SD card 
+	if (sCardResponse != SCARD_S_SUCCESS)
+	{
+		isResponseSuccess = PCSC_RESPONSE_ERROR;
+		error = sCardGetErrorString(sCardResponse);
+	}
+	else
+	{
+
+		// Read last 2 bytes of the response and check the status
+		unsigned short int responseCode = data[dataLength - 1] | (data[dataLength - 2] << 8);
+		if (responseCode != PCSC_RESPONSE_CODE_SUCCESS)
+		{
+			isResponseSuccess = PCSC_RESPONSE_ERROR;
+			response.sCardResponseCode = responseCode;
+			error = PCSC_GetError(responseCode);
+		}
+		else
+		{
+			if (dataLength > 2)
+			{
+				// Copy response data
+				int responseDataLength = sizeof(response.data) / sizeof(BYTE);
+				int copyLength = responseDataLength > dataLength - 2 ? dataLength - 2 : responseDataLength;
+				memcpy(response.data, data, copyLength);
+			}
+		}
+	}
+	response.isSuccess = isResponseSuccess;
+	
+	// Write error message
+	if (isResponseSuccess == PCSC_RESPONSE_ERROR)
+	{
+		strcpy(response.errorString, error);
+	}
+	return response;
+}
+
 /*************************************************
 Function:       PCSC_Connect       
 Description:
@@ -67,7 +116,7 @@ LONG PCSC_Connect(LPTSTR szReader  )
                    NULL,             // r.f.u
                    NULL,             // r.f.u
                    &m_hContext);	 // Returns the resource manager handle.
-	PCSC_STATUS(lRetValue,"SCardEstablishContext");	
+	PCSC_STATUS(lRetValue, "SCardEstablishContext");	
 
 	if(szReader  != NULL)
 	{
@@ -81,7 +130,7 @@ LONG PCSC_Connect(LPTSTR szReader  )
                     NULL, // NULL: list all readers in the system 
                     (LPTSTR)&pmszReaders, // Returs the card readers list.
                     &cch );
-	PCSC_STATUS(lRetValue,"SCardListReaders");
+	PCSC_STATUS(lRetValue, "SCardListReaders");
 		
 	iNumberOfReaders = 0;
 	pszReader = pmszReaders;
@@ -120,87 +169,6 @@ LONG PCSC_Connect(LPTSTR szReader  )
 
 }
 
-LONG PCSC_WaitForCardPresent(void)
-{
-    SCARD_READERSTATE sReaderState;
-    LONG lRetValue;
-
-    sReaderState.szReader = m_szSelectedReader;
-    sReaderState.dwCurrentState = SCARD_STATE_UNAWARE;
-    sReaderState.dwEventState = SCARD_STATE_UNAWARE;
-    
-    //The SCardGetStatusChange function blocks execution until the current 
-    //availability of the cards in a specific set of readers changes.
-    lRetValue = SCardGetStatusChange(
-                    m_hContext,     // Resource manager handle.
-                    30, //Max. amount of time (in milliseconds) to wait for an action.
-                    &sReaderState,  // Reader state
-                    1);             // Number of readers
-    PCSC_STATUS(lRetValue,"SCardGetStatusChange");	    
-    
-    // Check if card is already present
-    if((sReaderState.dwEventState & SCARD_STATE_PRESENT) == SCARD_STATE_PRESENT)
-    {
-        printf(": Card present...\n");
-    }
-    else
-    {
-        printf(": Wait for card...\n");
-
-        // wait for card
-        do
-        {
-            lRetValue = SCardGetStatusChange(m_hContext,30,&sReaderState,1);
-            PCSC_ERROR(lRetValue, "SCardGetStatusChange");
-            Sleep(100);
-        }
-        while((sReaderState.dwEventState & SCARD_STATE_PRESENT) == 0);    
-    }
-    
-    return lRetValue;
-}
-
-LONG PCSC_WaitForCardRemoval(void)
-{
-    SCARD_READERSTATE sReaderState;
-    LONG lRetValue;
-
-    sReaderState.szReader = m_szSelectedReader;
-    sReaderState.dwCurrentState = SCARD_STATE_UNAWARE;
-    sReaderState.dwEventState = SCARD_STATE_UNAWARE;
-    
-    //The SCardGetStatusChange function blocks execution until the current 
-    //availability of the cards in a specific set of readers changes.
-    lRetValue = SCardGetStatusChange(
-                    m_hContext,     // Resource manager handle.
-                    30, //Max. amount of time (in milliseconds) to wait for an action.
-                    &sReaderState,  // Reader state
-                    1);             // Number of readers
-    PCSC_STATUS(lRetValue,"SCardGetStatusChange");	    
-    
-    // Check if card is already present
-    if((sReaderState.dwEventState & SCARD_STATE_EMPTY) == SCARD_STATE_EMPTY)
-    {
-        printf(": Card removed...\n");
-    }
-    else
-    {
-        printf(": Wait until card is removed...\n");
-
-        // wait for card
-        do
-        {
-            lRetValue = SCardGetStatusChange(m_hContext,30,&sReaderState,1);
-            PCSC_ERROR(lRetValue, "SCardGetStatusChange");
-            Sleep(100);
-        }
-        while((sReaderState.dwEventState & SCARD_STATE_EMPTY) == 0);    
-    }
-    
-    return lRetValue;
-}
-//SCARD_STATE_EMPTY
-
 LONG PCSC_ActivateCard(void)
 {
 
@@ -219,163 +187,346 @@ LONG PCSC_ActivateCard(void)
 	switch(m_dwActiveProtocol)
 	{
 		case SCARD_PROTOCOL_T0:
-			printf(": Card Activated via  T=0 protocol");
+			printf(": Card Activated via  T=0 protocol\n");
 			break;
 
 		case SCARD_PROTOCOL_T1:
-			printf(": Card Activated via  T=1 protocol");
+			printf(": Card Activated via  T=1 protocol\n");
 			break;
 
 		case SCARD_PROTOCOL_UNDEFINED:
-			printf(": ERROR: Active protocol unnegotiated or unknown");
+			printf(": ERROR: Active protocol unnegotiated or unknown\n");
 			lRetValue = -1;
 			break;	
 	}
 	return lRetValue;
 }
 
-LONG PCSC_ClearAll()
+/**
+* Clear all data on the card
+*/
+PCSCResponse PCSC_ClearAll()
 {
-	BYTE baResponseApdu[300];	
+	BYTE baResponseApdu[2];	
 	DWORD lResponseApduLen = 0;
 	BYTE baCmdApduGetData[] = { 0x80, 0x46, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	LogOperation("CLEAR ALL");
-	return PCSC_Exchange(baCmdApduGetData, (DWORD) sizeof(baCmdApduGetData), baResponseApdu, &lResponseApduLen);
+	LONG sCardResponse = PCSC_Exchange(baCmdApduGetData, (DWORD) sizeof(baCmdApduGetData), baResponseApdu, &lResponseApduLen);
+	return FormatResponseFromCard(sCardResponse, baResponseApdu, lResponseApduLen);
 }
 
-LONG PCSC_Select()
+/**
+* Select command to turn on special commands on the card
+*/
+PCSCResponse PCSC_Select()
 {
 	BYTE baResponseApdu[300];	
 	DWORD lResponseApduLen = 0;
     BYTE baCmdApduGetData[] = { 0x00, 0xA4, 0x04, 0x00, 0x08, 0xFA, 0x41, 0x56, 0x54, 0x52, 0x53, 0x41, 0x44};
 	LogOperation("SELECT");
-	return PCSC_Exchange(baCmdApduGetData, (DWORD) sizeof(baCmdApduGetData), baResponseApdu, &lResponseApduLen);
+	LONG sCardResponse = PCSC_Exchange(baCmdApduGetData, (DWORD) sizeof(baCmdApduGetData), baResponseApdu, &lResponseApduLen);
+	PCSCResponse response = FormatResponseFromCard(sCardResponse, baResponseApdu, lResponseApduLen);
+	return response;
 }
 
-LONG PCSC_Activate()
+/**
+* Activate card
+*/
+PCSCResponse PCSC_Activate()
 {
-	BYTE baResponseApdu[300];	
+	BYTE baResponseApdu[2];	
 	DWORD lResponseApduLen = 0;
     BYTE baCmdApduGetData[] = { 0x80, 0x48, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 	LogOperation("ACTIVATE");
-	return PCSC_Exchange(baCmdApduGetData, (DWORD) sizeof(baCmdApduGetData), baResponseApdu, &lResponseApduLen);
+	LONG sCardResponse = PCSC_Exchange(baCmdApduGetData, (DWORD) sizeof(baCmdApduGetData), baResponseApdu, &lResponseApduLen);
+	return FormatResponseFromCard(sCardResponse, baResponseApdu, lResponseApduLen);
 }
 
-LONG PCSC_GetSerial()
+/**
+* Get serial number of the card
+*/
+PCSCResponse PCSC_GetSerial()
 {
 	BYTE baResponseApdu[10];	
 	DWORD lResponseApduLen = 0;
     BYTE baCmdApduGetData[] = { 0x80, 0xF6, 0x00, 0x00, 0x08};
 	LogOperation("GET SERIAL");
-	LONG lRetValue = PCSC_Exchange(baCmdApduGetData, (DWORD) sizeof(baCmdApduGetData), baResponseApdu, &lResponseApduLen);
-	return lRetValue;
+	LONG sCardResponse = PCSC_Exchange(baCmdApduGetData, (DWORD) sizeof(baCmdApduGetData), baResponseApdu, &lResponseApduLen);
+	return FormatResponseFromCard(sCardResponse, baResponseApdu, lResponseApduLen);
 }
 
-LONG PCSC_CheckPin(BYTE pin[], int pinLength)
+/**
+* Enter the PIN code for authorization
+*/
+PCSCResponse PCSC_CheckPin(BYTE pin[], int pinLength)
 {
-	BYTE baResponseApdu[10];	
+	BYTE baResponseApdu[2];	
 	DWORD lResponseApduLen = 0;
+
+	// Prepare header bytes
 	BYTE headerData[] = { 0x00, 0x20, 0x00, 0x05, (BYTE)pinLength };
 	int headerLength = sizeof(headerData) / sizeof(BYTE);
 	int messageLength = (headerLength + pinLength) * sizeof(BYTE);
+	
+	// Merge header bytes and pin code into the one destination
 	BYTE* baCmdApduGetData = (BYTE*)malloc(messageLength);
 	memcpy(baCmdApduGetData, headerData, headerLength * sizeof(BYTE));
 	memcpy(baCmdApduGetData + headerLength * sizeof(BYTE), pin, pinLength * sizeof(BYTE));
+	
 	LogOperation("CHECK PIN");
-	LONG lRetValue = PCSC_Exchange(baCmdApduGetData, (DWORD) messageLength, baResponseApdu, &lResponseApduLen);
-	return lRetValue;
+	LONG sCardResponse = PCSC_Exchange(baCmdApduGetData, (DWORD) messageLength, baResponseApdu, &lResponseApduLen);
+	return FormatResponseFromCard(sCardResponse, baResponseApdu, lResponseApduLen);
 }
 
-LONG PCSC_Challenge()
+/**
+* Challenge method to enable input mode in card
+*/
+PCSCResponse PCSC_Challenge()
 {
 	BYTE baResponseApdu[10];	
 	DWORD lResponseApduLen = 0;
     BYTE baCmdApduGetData[] = { 0x00, 0x84, 0x00, 0x00, 0x08};
 	LogOperation("CHALLENGE FOR INPUT");
-	LONG lRetValue = PCSC_Exchange(baCmdApduGetData, (DWORD) sizeof(baCmdApduGetData), baResponseApdu, &lResponseApduLen);
-	return lRetValue;
+	LONG sCardResponse = PCSC_Exchange(baCmdApduGetData, (DWORD) sizeof(baCmdApduGetData), baResponseApdu, &lResponseApduLen);
+	return FormatResponseFromCard(sCardResponse, baResponseApdu, lResponseApduLen);
 }
 
-LONG PCSC_InitImport(BYTE data[], int dataLength, int P2)
+/**
+* Import array of bytes into the private key
+* @data - input array of bytes
+* @dataLength - array length
+* @P2 - parameter which defines the type of the imported data (key or module)
+*/
+PCSCResponse PCSC_InitImport(BYTE data[], int dataLength, int P2)
 {
-	BYTE baResponseApdu[10];	
+	BYTE baResponseApdu[2];	
 	DWORD lResponseApduLen = 0;
+
+	// Prepare header bytes
 	BYTE headerData[] = { 0x80, 0x34, 0x00, (BYTE)P2, 0x80 };
 	int headerLength = sizeof(headerData) / sizeof(BYTE);
 	int messageLength = (headerLength + dataLength) * sizeof(BYTE);
+	
+	// Load header bytes and data into the destination buffer
 	BYTE* baCmdApduGetData = (BYTE*)malloc(messageLength);
 	memcpy(baCmdApduGetData, headerData, headerLength * sizeof(BYTE));
 	memcpy(baCmdApduGetData + headerLength * sizeof(BYTE), data, dataLength * sizeof(BYTE));
+	
 	LogOperation("INIT IMPORT");
-	LONG lRetValue = PCSC_Exchange(baCmdApduGetData, (DWORD) messageLength, baResponseApdu, &lResponseApduLen);
-	return lRetValue;
+	LONG sCardResponse = PCSC_Exchange(baCmdApduGetData, (DWORD) messageLength, baResponseApdu, &lResponseApduLen);
+	return FormatResponseFromCard(sCardResponse, baResponseApdu, lResponseApduLen);
 }
 
-LONG PCSC_Import(BYTE P1, BYTE sizeKey[])
+/**
+* Write imported data into the given key
+* @P1 - Key ID
+* @sizeKey[] - size (bytes) of the imported data 
+*/
+PCSCResponse PCSC_Import(BYTE P1, BYTE sizeKey[])
 {
-	BYTE baResponseApdu[10];	
+	BYTE baResponseApdu[2];	
 	DWORD lResponseApduLen = 0;
+	
+	// Form header bytes
 	BYTE headerData[] = { 0x80, 0x34, P1, 0x05, 0x24 };
 	int messageLength = 41;
 	int headerLength = sizeof(headerData) / sizeof(BYTE);
+	
+	// Copy header bytes and size bytes into the buffer
 	BYTE* baCmdApduGetData = (BYTE*)malloc(messageLength);
 	memset(baCmdApduGetData, 0, messageLength);
 	memcpy(baCmdApduGetData, headerData, headerLength * sizeof(BYTE));
 	memcpy(baCmdApduGetData + headerLength + 18, sizeKey, 2);
+	
 	LogOperation("IMPORT");
-	LONG lRetValue = PCSC_Exchange(baCmdApduGetData, (DWORD) messageLength, baResponseApdu, &lResponseApduLen);
-	return lRetValue;
+	LONG sCardResponse = PCSC_Exchange(baCmdApduGetData, (DWORD) messageLength, baResponseApdu, &lResponseApduLen);
+	return FormatResponseFromCard(sCardResponse, baResponseApdu, lResponseApduLen);
 }
 
-BYTE* PCSC_SignData(BYTE P1, BYTE hash[], BYTE hashLength)
+/**
+* Sign the hash data
+* Method return up to 128 bytes of the signed hash
+* Next 128 bytes are returned by the method PCSC_GetSignResp2()
+* @P1 - Key ID
+* @hash[] - hash data presented in bytes
+* @hashLength - length of hash
+*/
+PCSCResponse PCSC_SignData(BYTE P1, BYTE hash[], BYTE hashLength)
 {
-	BYTE baResponseApdu[132];	
-	BYTE* response = (BYTE*)malloc(128 * sizeof(BYTE));
-	memset(response, 0x00, 128);
+	BYTE baResponseApdu[132];
+	int responseLength = PRIVATE_KEY_LEGNTH / 2;
 	DWORD lResponseApduLen = 0;
+
+	// Prepare header bytes and allocate memory for message
 	BYTE headerData[] = { 0x80, 0x50, P1, 0x00, hashLength };
 	int headerLength = sizeof(headerData) / sizeof(BYTE);
 	int messageLength = (headerLength + hashLength + 1) * sizeof(BYTE);
+	
+	// Copy header bytes and hash bytes
 	BYTE* baCmdApduGetData = (BYTE*)malloc(messageLength);
 	memcpy(baCmdApduGetData, headerData, headerLength * sizeof(BYTE));
 	memcpy(baCmdApduGetData + headerLength * sizeof(BYTE), hash, hashLength * sizeof(BYTE));
-	baCmdApduGetData[messageLength - 1] = 0x82;
+	
+	// Write the last byte which describes the response length
+	baCmdApduGetData[messageLength - 1] = responseLength + 2;
+	
 	LogOperation("SIGN DATA");
-	LONG lRetValue = PCSC_Exchange(baCmdApduGetData, (DWORD) messageLength, baResponseApdu, &lResponseApduLen);
-	if (baResponseApdu[lResponseApduLen - 2] == 0x90 & baResponseApdu[lResponseApduLen - 1] == 0x00)
+	LONG sCardResponse = PCSC_Exchange(baCmdApduGetData, (DWORD) messageLength, baResponseApdu, &lResponseApduLen);
+	PCSCResponse response = FormatResponseFromCard(sCardResponse, baResponseApdu, lResponseApduLen);
+	
+	// If response is success than extract signed hash from the response
+	if (response.isSuccess == PCSC_RESPONSE_SUCCESS)
 	{
-		memcpy(response, baResponseApdu + 2, 128);
+		memset(response.data, 0x00, responseLength);
+		memcpy(response.data, baResponseApdu + 2, responseLength);
 	}
 	return response;
 }
 
-BYTE* PCSC_GetSignResp2()
+/**
+* Get the last 128 bytes of the signed hash
+*/
+PCSCResponse PCSC_GetSignResp2()
 {
+	// Form message
 	BYTE baResponseApdu[0x82];
-	BYTE* response = (BYTE*)malloc(128 * sizeof(BYTE));
+	int responseLength = PRIVATE_KEY_LEGNTH / 2;
 	DWORD lResponseApduLen = 0;
     BYTE baCmdApduGetData[] = { 0x80, 0x5E, 0x00, 0x00, 0x80};
+	
 	LogOperation("GET SIGN RESP 2");
-	LONG lRetValue = PCSC_Exchange(baCmdApduGetData, (DWORD) sizeof(baCmdApduGetData), baResponseApdu, &lResponseApduLen);
-	if (baResponseApdu[lResponseApduLen - 2] == 0x90 & baResponseApdu[lResponseApduLen - 1] == 0x00)
+	LONG sCardResponse = PCSC_Exchange(baCmdApduGetData, (DWORD) sizeof(baCmdApduGetData), baResponseApdu, &lResponseApduLen);
+	PCSCResponse response = FormatResponseFromCard(sCardResponse, baResponseApdu, lResponseApduLen);
+	
+	// Extract the data from the response in case of successfull request
+	if (response.isSuccess == PCSC_RESPONSE_SUCCESS)
 	{
-		memcpy(response, baResponseApdu, 128);
+		memcpy(response.data, baResponseApdu, responseLength);
 	}
 	return response;
 }
 
-BYTE* PCSC_Sign(BYTE P1, BYTE hash[], BYTE hashLength)
+/**
+* Sign hash data
+* @P1 - Key ID
+* @hash - hash data
+* @hashLength - array length
+*/
+PCSCResponse PCSC_Sign(BYTE P1, BYTE hash[], BYTE hashLength)
 {
-	BYTE* firstPart = (BYTE*)malloc(128 * sizeof(BYTE));
-	BYTE* secondPart = (BYTE*)malloc(128 * sizeof(BYTE));
-	firstPart = PCSC_SignData(P1, hash, hashLength);
-	secondPart = PCSC_GetSignResp2();
-	BYTE* response = (BYTE*)malloc(256 * sizeof(BYTE));
-	memcpy(response, firstPart, 128);
-	memcpy(response + 128, secondPart, 128); 
+	int keyHalfLength = PRIVATE_KEY_LEGNTH / 2;
+	
+	// Make the first sign request
+	PCSCResponse firstResponse = PCSC_SignData(P1, hash, hashLength);
+	PCSCResponse response;
+	if (firstResponse.isSuccess)
+	{
+		// Make reuqest to get the last 128 bytes of the signed hash
+		PCSCResponse secondResponse = PCSC_GetSignResp2();
+		if (secondResponse.isSuccess)
+		{
+			// Concatenate arrays into the one array
+			response.isSuccess = PCSC_RESPONSE_SUCCESS;
+			memcpy(response.data, firstResponse.data, keyHalfLength);
+			memcpy(response.data + keyHalfLength, secondResponse.data, keyHalfLength); 
+		}
+		else
+		{
+			return secondResponse;
+		}
+	}
+	else
+	{
+		return firstResponse;
+	}
 	return response;
 }
 
+/**
+* Select the file by the given File ID (FID)
+* @fileIndex - FID, presented by 2 bytes
+*/
+PCSCResponse PCSC_SelectFile(BYTE fileIndex[])
+{
+	BYTE baResponseApdu[10];	
+	DWORD lResponseApduLen = 0;
+	BYTE baCmdApduGetData[] = { 0x00, 0xa4, 0x00, 0x00, 0x02, fileIndex[0], fileIndex[1], 0x01 };
+	LogOperation("SELECT FILE");
+	LONG sCardResponse = PCSC_Exchange(baCmdApduGetData, (DWORD) sizeof(baCmdApduGetData), baResponseApdu, &lResponseApduLen);
+	return FormatResponseFromCard(sCardResponse, baResponseApdu, lResponseApduLen);
+}
+
+/**
+* Read binary data from the file
+* @P1, @P2 - attributes for file selection and offset setting
+* @LE - descibes the expexted length of the response
+* @LELength - length of the @LE
+*/
+PCSCResponse PCSC_ReadBinary(BYTE P1, BYTE P2, BYTE LE[], int LELength)
+{
+	// Allocate memory for the response buffer
+	BYTE* baResponseApdu = (BYTE*)malloc((LELength + 2) * sizeof(BYTE));	
+	DWORD lResponseApduLen = 0;
+	
+	// Prepare header bytes
+	BYTE headerData[] = { 0x00, 0xb0, P1, P2 };
+	int headerLength = sizeof(headerData) / sizeof(BYTE);
+	int messageLength = (headerLength + LELength) * sizeof(BYTE);
+	
+	// Copy header bytes and file ID into the request buffer
+	BYTE* baCmdApduGetData = (BYTE*)malloc(messageLength);
+	memcpy(baCmdApduGetData, headerData, headerLength * sizeof(BYTE));
+	memcpy(baCmdApduGetData + headerLength * sizeof(BYTE), LE, LELength * sizeof(BYTE));
+	
+	LogOperation("READ BINARY");
+	LONG sCardResponse = PCSC_Exchange(baCmdApduGetData, (DWORD) messageLength, baResponseApdu, &lResponseApduLen);
+	return FormatResponseFromCard(sCardResponse, baResponseApdu, lResponseApduLen);
+}
+
+/**
+* Check if the given key is presented in the memory
+* @KeyID - given Key ID to search 
+*/
+PCSCResponse PCSC_CheckIfKeyPresent(BYTE KeyID)
+{
+	// Select the file 000B for reading
+	BYTE fileIndex[] = { 0x00, 0x0B };
+	PCSCResponse response = PCSC_SelectFile(fileIndex);
+	if (response.isSuccess == PCSC_RESPONSE_SUCCESS)
+	{
+		// Set offset and read just 1 byte from the file
+		BYTE P1 = 0x00;
+		BYTE P2 = 0x24;
+		BYTE LE[] = { 0x01 };
+		response = PCSC_ReadBinary(P1, P2, LE, sizeof(LE) / sizeof(BYTE));
+		
+		// Compare result byte with the KeyID
+		if (response.isSuccess == PCSC_RESPONSE_SUCCESS)
+		{
+			if (response.data[0] == KeyID)
+			{
+				response.data[0] = 0x01;
+			}
+			else
+			{
+				response.data[0] = 0x00;
+			}
+		}
+		else
+		{
+			return response;
+		}
+	}
+	else
+	{
+		return response;
+	}
+	return response;
+}
+
+/**
+* General method for data exchange
+*/
 LONG PCSC_Exchange(LPCBYTE pbSendBuffer ,DWORD  cbSendLength ,LPBYTE  pbRecvBuffer ,LPDWORD pcbRecvLength )
 {	
 	
@@ -416,7 +567,9 @@ LONG PCSC_Exchange(LPCBYTE pbSendBuffer ,DWORD  cbSendLength ,LPBYTE  pbRecvBuff
 	return lRetValue;		
 }
 
-
+/**
+* Disconnect from the card
+*/
 LONG PCSC_Disconnect(void)
 {
 	long lRetValue;
@@ -434,62 +587,65 @@ LONG PCSC_Disconnect(void)
 	return lRetValue;
 }
 
-
-LONG PCSC_GetVentorName()
+/**
+* Translate the error of special commands
+*/
+CHAR* PCSC_GetError(unsigned short int code)
 {
-	LPBYTE   pbAttr = NULL;
-	DWORD    cByte = SCARD_AUTOALLOCATE;
-	DWORD    i;
-	LONG	 lRetValue;
-    
-    // Gets the current reader attributes for the given handle.
-	lRetValue = SCardGetAttrib(
-                    m_hCard,  // Card handle.
-					SCARD_ATTR_VENDOR_NAME, // Attribute identifier.
-					(LPBYTE)&pbAttr,    // Attribute buffer.
-					&cByte);            // Returned attribute length.
-	PCSC_STATUS(lRetValue,"SCardGetAttrib (VENDOR_NAME)");
-	
-	// Output the bytes.
-	for (i = 0; i < cByte; i++)
-		printf("%c", *(pbAttr+i));
-	printf("\n");
-	
-	// Releases memory that has been returned from the resource manager 
-    // using the SCARD_AUTOALLOCATE length designator.
-	lRetValue = SCardFreeMemory( m_hContext, pbAttr );
-	PCSC_ERROR(lRetValue, "SCardFreeMemory");
-
-	return lRetValue;
-}
-
-
-LONG PCSC_GetAtrString(LPBYTE atr, LPINT atrLen)
-{
-	LPBYTE   pbAttr = NULL;
-	DWORD    cByte = SCARD_AUTOALLOCATE;
-	LONG	 lRetValue;
-
-    // Gets the current reader attributes for the given handle.
-	lRetValue = SCardGetAttrib(
-                    m_hCard, // Card handle.
-					SCARD_ATTR_ATR_STRING,// Attribute identifier.
-					(LPBYTE)&pbAttr,  // Attribute buffer.
-					&cByte);          // Returned attribute length.
-	PCSC_ERROR(lRetValue,"SCardGetAttrib (ATR_STRING)");
-	
-	printHexString("\n      Atr: 0x",(LPBYTE)pbAttr, cByte);
-
-	if(atr != NULL)
+	char* error;
+	switch (code)
 	{
-		copyByte(atr, pbAttr, cByte);
-		*atrLen = cByte;
+		case 0x9801:
+			error = "erNotActivated";
+			break;
+		case 0x981D:
+			error = "erWrongKeyState";
+			break;
+		case 0x981E:
+			error = "erWrongKeyIndex";
+			break;
+		case 0x6A84:
+			error = "erNoSpace";
+			break;
+		case 0x6982:
+			error = "erAcNotSatisfied";
+			break;
+		case 0x6B00:
+			error = "erInvalidP1P2";
+			break;
+		case 0x6700:
+			error = "erInvalidLength";
+			break;
+		case 0x9580:
+			error = "erWrongStateXX";
+			break;
+		case 0x63C0:
+			error = "erWrongKey";
+			break;
+		case 0x6981:
+			error = "erWrongFileStruct";
+			break;
+		case 0x6983:
+			error = "erKeyBlocked";
+			break;
+		case 0x6985:
+			error = "erConditionsNotOk";
+			break;
+		case 0x6987:
+			error = "erSecmObjNotOk";
+			break;
+		case 0x6988:
+			error = "erIncorrectMAC";
+			break;
+		case 0x6D00:
+			error = "erBadINS";
+			break;
+		case 0x6E00:
+			error = "erBadCLA";
+			break;
+	default:
+		error = "Undefined error code";
+		break;
 	}
-
-	// Releases memory that has been returned from the resource manager 
-    // using the SCARD_AUTOALLOCATE length designator.
-	lRetValue = SCardFreeMemory( m_hContext, pbAttr );
-	PCSC_ERROR(lRetValue, "SCardFreeMemory");
-
-	return lRetValue;
+	return error;
 }

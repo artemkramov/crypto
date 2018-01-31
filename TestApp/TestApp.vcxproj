@@ -76,21 +76,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="asn.h" />
-    <ClInclude Include="clessCardType.h" />
-    <ClInclude Include="module.h" />
     <ClInclude Include="pcsc.h" />
-    <ClInclude Include="resource.h" />
-    <ClInclude Include="stdafx.h" />
     <ClInclude Include="util.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="asn.cpp" />
-    <ClCompile Include="clessCardType.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="pcsc.cpp" />
-    <ClCompile Include="SCardGetErrorString.cpp" />
-    <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="util.cpp" />
   </ItemGroup>
   <ItemGroup>
