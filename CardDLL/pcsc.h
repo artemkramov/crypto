@@ -1,0 +1,90 @@
+#include <winscard.h>
+#include <conio.h>
+#include <stdio.h>
+
+// Include Winscard library for working with card reader
+#pragma comment(lib, "Winscard")
+
+#ifndef PCSC_H_INCLUDE
+#define PCSC_H_INCLUDE
+
+#define PRIVATE_KEY_LEGNTH 256 //2048 bit
+
+#define PCSC_RESPONSE_SUCCESS 1
+#define PCSC_RESPONSE_ERROR 0
+
+#define PCSC_RESPONSE_CODE_SUCCESS 0x9000
+
+	#define PCSC_STATUS(lRetValue, msg)						  \
+		if(lRetValue == SCARD_S_SUCCESS)					  \
+		{													  \
+			printf("\n   " msg  ": %s\n",						  \
+					sCardGetErrorString(lRetValue));		  \
+		}													  \
+		else												  \
+		{													  \
+			printf("\n   " msg  ": Error 0x%04X %s",		  \
+				   lRetValue, sCardGetErrorString(lRetValue)); \
+			return lRetValue;								  \
+	    }								
+
+	#define PCSC_ERROR(lRetValue, msg)				          \
+		if(lRetValue != SCARD_S_SUCCESS)					  \
+		{													  \
+			printf("\n   " msg  ": Error 0x%04X %s",		  \
+				   lRetValue, sCardGetErrorString(lRetValue)); \
+			return lRetValue;								  \
+		}
+	
+    #define PCSC_EXIT_ON_ERROR(lRetValue)   	              \
+		if(lRetValue != SCARD_S_SUCCESS)					  \
+		{													  \
+            while(!_kbhit());                                 \
+			return 0;								          \
+		}
+
+	 #define PCSC_EXIT_ON_RESPONSE_ERROR(lRetValue)   					\
+	 if(lRetValue.isSuccess != PCSC_RESPONSE_SUCCESS)					\
+		{																\
+			printf("Error string: %s\n", lRetValue.errorString);		\
+			printf("Error code: %04X\n", lRetValue.sCardResponseCode);	\
+			return 0;													\
+		}
+
+	struct PCSCResponse {
+		int isSuccess;
+		int sCardResponseCode;
+		char errorString[100];
+		BYTE data[256];
+	};
+	#ifdef __cplusplus  
+		extern "C" {  // only need to export C interface if  
+              // used by C++ source code  
+	#endif
+	
+	__declspec(dllimport) LONG PCSC_Connect(LPTSTR sReader );
+	__declspec(dllimport) LONG PCSC_ActivateCard(void);
+	
+	__declspec(dllimport) PCSCResponse PCSC_ClearAll(void);
+	__declspec(dllimport) PCSCResponse PCSC_Select(void);
+	__declspec(dllimport) PCSCResponse PCSC_Activate(void);
+	__declspec(dllimport) PCSCResponse PCSC_GetSerial(void);
+	__declspec(dllimport) PCSCResponse PCSC_CheckPin(BYTE pin[], int pinLength);
+	__declspec(dllimport) PCSCResponse PCSC_Challenge(void);
+	__declspec(dllimport) PCSCResponse PCSC_InitImport(BYTE data[], int dataLength, int P2);
+	__declspec(dllimport) PCSCResponse PCSC_Import(BYTE P1, BYTE size[]);
+	__declspec(dllimport) PCSCResponse PCSC_Sign(BYTE P1, BYTE hash[], BYTE hashLength);
+	__declspec(dllimport) PCSCResponse PCSC_SelectFile(BYTE fileIndex[]);
+	__declspec(dllimport) PCSCResponse PCSC_ReadBinary(BYTE P1, BYTE P2, BYTE LE[], int LELength);
+	__declspec(dllimport) PCSCResponse PCSC_CheckIfKeyPresent(BYTE KeyID);
+
+	LONG PCSC_Exchange(LPCBYTE pbSendBuffer ,DWORD  cbSendLength ,
+					   LPBYTE  pbRecvBuffer ,LPDWORD pcbRecvLength );
+	__declspec(dllimport) LONG PCSC_Disconnect(void);
+	CHAR* PCSC_GetError(unsigned short int code);
+
+	#ifdef __cplusplus  
+	}  
+	#endif
+
+#endif

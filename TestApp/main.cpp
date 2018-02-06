@@ -5,7 +5,6 @@ Program for making cryptographic operations with Smart Card
 #include <stdio.h>
 #include "pcsc.h"
 #include "util.h"
-#include "asn.h"
 
 // Define optional methods for demonstration
 void printMenu();

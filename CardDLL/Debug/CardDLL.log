@@ -1,0 +1,47 @@
+﻿Build started 2/6/2018 3:00:51 PM.
+     1>Project "E:\DATA(G)\Криптомодуль\TestProgram\TestApp\CardDLL\CardDLL.vcxproj" on node 2 (Rebuild target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _WINDOWS /D _USRDLL /D CARDDLL_EXPORTS /D _CRT_SECURE_NO_WARNINGS /D _WINDLL /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc110.pdb" /Gd /TP /analyze- /errorReport:prompt pcsc.cpp util.cpp
+         util.cpp
+         pcsc.cpp
+     1>e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.cpp(104): warning C4273: 'PCSC_Connect' : inconsistent dll linkage
+                 e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.h(65) : see previous definition of 'PCSC_Connect'
+     1>e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.cpp(173): warning C4273: 'PCSC_ActivateCard' : inconsistent dll linkage
+                 e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.h(66) : see previous definition of 'PCSC_ActivateCard'
+     1>e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.cpp(209): warning C4273: 'PCSC_ClearAll' : inconsistent dll linkage
+                 e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.h(68) : see previous definition of 'PCSC_ClearAll'
+     1>e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.cpp(222): warning C4273: 'PCSC_Select' : inconsistent dll linkage
+                 e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.h(69) : see previous definition of 'PCSC_Select'
+     1>e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.cpp(236): warning C4273: 'PCSC_Activate' : inconsistent dll linkage
+                 e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.h(70) : see previous definition of 'PCSC_Activate'
+     1>e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.cpp(249): warning C4273: 'PCSC_GetSerial' : inconsistent dll linkage
+                 e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.h(71) : see previous definition of 'PCSC_GetSerial'
+     1>e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.cpp(262): warning C4273: 'PCSC_CheckPin' : inconsistent dll linkage
+                 e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.h(72) : see previous definition of 'PCSC_CheckPin'
+     1>e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.cpp(285): warning C4273: 'PCSC_Challenge' : inconsistent dll linkage
+                 e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.h(73) : see previous definition of 'PCSC_Challenge'
+     1>e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.cpp(301): warning C4273: 'PCSC_InitImport' : inconsistent dll linkage
+                 e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.h(74) : see previous definition of 'PCSC_InitImport'
+     1>e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.cpp(326): warning C4273: 'PCSC_Import' : inconsistent dll linkage
+                 e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.h(75) : see previous definition of 'PCSC_Import'
+     1>e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.cpp(416): warning C4273: 'PCSC_Sign' : inconsistent dll linkage
+                 e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.h(76) : see previous definition of 'PCSC_Sign'
+     1>e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.cpp(450): warning C4273: 'PCSC_SelectFile' : inconsistent dll linkage
+                 e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.h(77) : see previous definition of 'PCSC_SelectFile'
+     1>e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.cpp(466): warning C4273: 'PCSC_ReadBinary' : inconsistent dll linkage
+                 e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.h(78) : see previous definition of 'PCSC_ReadBinary'
+     1>e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.cpp(491): warning C4273: 'PCSC_CheckIfKeyPresent' : inconsistent dll linkage
+                 e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.h(79) : see previous definition of 'PCSC_CheckIfKeyPresent'
+     1>e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.cpp(574): warning C4273: 'PCSC_Disconnect' : inconsistent dll linkage
+                 e:\data(g)\криптомодуль\testprogram\testapp\carddll\pcsc.h(83) : see previous definition of 'PCSC_Disconnect'
+         Generating Code...
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"E:\DATA(G)\Криптомодуль\TestProgram\TestApp\Debug\CardDLL.dll" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"E:\DATA(G)\Криптомодуль\TestProgram\TestApp\Debug\CardDLL.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"E:\DATA(G)\Криптомодуль\TestProgram\TestApp\Debug\CardDLL.lib" /MACHINE:X86 /DLL Debug\pcsc.obj
+         Debug\util.obj
+            Creating library E:\DATA(G)\Криптомодуль\TestProgram\TestApp\Debug\CardDLL.lib and object E:\DATA(G)\Криптомодуль\TestProgram\TestApp\Debug\CardDLL.exp
+         CardDLL.vcxproj -> E:\DATA(G)\Криптомодуль\TestProgram\TestApp\Debug\CardDLL.dll
+     1>Done Building Project "E:\DATA(G)\Криптомодуль\TestProgram\TestApp\CardDLL\CardDLL.vcxproj" (Rebuild target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:03.66
